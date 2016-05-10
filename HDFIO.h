@@ -3,7 +3,6 @@
 
 #include <hdf5.h>
 #include <iostream>
-#include <fstream>
 #include <string>
 
 #define HDFIO_VERBOSE_OFF 0
@@ -59,6 +58,9 @@ protected:
   
   herr_t status;
 
+  H5E_auto2_t default_error_func; //stores function for default h5 error out
+  void *default_error_out; //pointer to default error output
+
   int verbosity_level,
       compression_level;
 
@@ -82,6 +84,10 @@ protected:
     dataset_type = memory_type;
 
     rank = rank_in;
+    
+    HDFIO_DEBUG_COUT << "Stashing H5 error handeling parameters..." << std::flush;
+    status = H5Eget_auto(H5E_DEFAULT, &default_error_func, &default_error_out);
+    HDFIO_DEBUG_COUT << "Done!" << std::endl;
 
     HDFIO_DEBUG_COUT << "Allocating internal variables..." << std::flush;
     mem_dims = new hsize_t[rank];
@@ -109,7 +115,24 @@ protected:
 
     return;
   }
+  /**
+   * @brief Pause H5's default error handeling
+   * @details Enables you to run checks on H5 comands you expect to fail.
+   * 
+   */
+  void _pauseH5ErrorHandeling()
+  {
+    H5Eset_auto(H5E_DEFAULT,NULL,NULL);
+  }
 
+  /**
+   * @brief Resume H5's default error handeling
+   * 
+   */
+  void _resumeH5ErrorHandeling()
+  {
+    H5Eset_auto(H5E_DEFAULT,default_error_func,default_error_out);
+  }
   /**
    * @brief initialize variables associated with a file_info instance
    * @details Checks for gzip support; behavior unclear if not supported.
@@ -124,17 +147,24 @@ protected:
     HDFIOFileInfo file_info;
 
     // Create a file
-    if(std::ifstream(file_name))
+    HDFIO_DEBUG_COUT << "Seeing if file exists..." << std::flush;
+    _pauseH5ErrorHandeling();
+    file_info.file_id = H5Fopen(file_name.c_str(), H5F_ACC_RDWR,
+      H5P_DEFAULT);
+    _resumeH5ErrorHandeling();
+
+    if(file_info.file_id<0)
     {
-      HDFIO_DEBUG_COUT << "File exists; opening it..." << std::flush;
-      file_info.file_id = H5Fopen(file_name.c_str(), H5F_ACC_RDWR,
-        H5P_DEFAULT);
+      HDFIO_DEBUG_COUT << "No such file." << std::endl << "Creating file instead..." << std::flush;
+      file_info.file_id = H5Fcreate(file_name.c_str(), H5F_ACC_EXCL,
+        H5P_DEFAULT, H5P_DEFAULT);
     }
     else
     {
-      HDFIO_DEBUG_COUT << "Creating file..." << std::flush;
-      file_info.file_id = H5Fcreate(file_name.c_str(), H5F_ACC_EXCL,
-        H5P_DEFAULT, H5P_DEFAULT);
+      H5Fclose(file_info.file_id);
+      HDFIO_DEBUG_COUT << "File exists." << std::endl << "Opening file..." << std::flush;
+      file_info.file_id = H5Fopen(file_name.c_str(), H5F_ACC_RDWR,
+        H5P_DEFAULT);
     }
     HDFIO_DEBUG_COUT << "Done!" << std::endl << std::flush;
 
@@ -161,12 +191,29 @@ protected:
     HDFIO_DEBUG_COUT << "Done!" << std::endl << std::flush;
 
     /* Create dataset and write it into the file */
-    HDFIO_DEBUG_COUT << "Creating dataset..." << std::flush;
-    file_info.dataset_id = H5Dcreate(file_info.file_id, dataset_name.c_str(),
-      dataset_type, file_info.file_dspace_id, H5P_DEFAULT,
-      file_info.data_compression_plist, H5P_DEFAULT);
+    HDFIO_DEBUG_COUT << "Seeing if dataset exists..." << std::flush;
+    _pauseH5ErrorHandeling();
+    file_info.dataset_id = H5Dopen(file_info.file_id, dataset_name.c_str(),
+     H5P_DEFAULT);
+    _resumeH5ErrorHandeling();
+
+    if(file_info.dataset_id<0)
+    {
+      HDFIO_DEBUG_COUT << "No such dataset." << std::endl << "Creating dataset..." << std::flush;
+      file_info.dataset_id = H5Dcreate(file_info.file_id, dataset_name.c_str(),
+        dataset_type, file_info.file_dspace_id, H5P_DEFAULT,
+        file_info.data_compression_plist, H5P_DEFAULT);
+    }
+    else
+    {
+      H5Dclose(file_info.dataset_id);
+      HDFIO_DEBUG_COUT << "Dataset exists." << std::endl << "Opening dataset..." << std::flush;
+      file_info.dataset_id = H5Dopen(file_info.file_id, dataset_name.c_str(),
+        H5P_DEFAULT); 
+    }
     HDFIO_DEBUG_COUT << "Done!" << std::endl << std::flush;
-      
+
+    
     return file_info;
   }
 
@@ -341,13 +388,20 @@ public:
    
     _closeFileInfo(&file_info);
   }
-
+  /**
+   * @brief Reads data from file to array
+   * @details 
+   * 
+   * @param array memory Location of start of memory chunk to be read to.
+   * @param file_name File name containg datset to be read
+   * @param dataset_name Dataset name which will be read to array
+   */
   void readFileToArray(void *array, std::string file_name, std::string dataset_name)
   {  
     HDFIOFileInfo file_info = _getFileInfo(file_name,dataset_name);
 
     /* Write the data */
-    HDFIO_DEBUG_COUT << "Writing dataset..." << std::flush;
+    HDFIO_DEBUG_COUT << "Writing dataset to memory..." << std::flush;
     status = H5Dread(file_info.dataset_id, memory_type, mem_dspace_id,
       file_info.file_dspace_id, H5P_DEFAULT, array);
     HDFIO_DEBUG_COUT << "Done!" << std::endl << std::flush;
