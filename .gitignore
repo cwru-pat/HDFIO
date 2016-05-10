@@ -1,3 +1,10 @@
+# Test exe file
+test
+
+# Any h5, h5.gz files
+*.h5
+*.h5.gz
+
 # Compiled Object files
 *.slo
 *.lo
