@@ -1,7 +1,7 @@
 # HDFIO
 C++ wrapper class to read and write simple arrays and hyperslabs
 
-Compile with
+For now, compile using someting like
 ```
-g++ main.cpp -o test -lhdf5 -Wall --std=c++11
+g++ test.cpp -o test -lhdf5 -Wall --std=c++11
 ```

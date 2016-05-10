@@ -22,7 +22,6 @@
 #define HDFIO_VERBOSE_COUT if(verbosity_level == HDFIO_VERBOSE_ON) std::cout
 #define HDFIO_DEBUG_COUT if(verbosity_level >= HDFIO_VERBOSE_ON) std::cout
 
-
 /**
  * @brief Struct for storing information about HDF5 files
  */
@@ -43,7 +42,7 @@ struct HDFIOFileInfo
 
 class HDFIO
 {
-private:
+protected:
   int rank; // Number of dimensions
 
   hsize_t *mem_dims,    // dimensions of array in memory
@@ -187,6 +186,22 @@ private:
   }
 
 public:
+
+  /**
+   * @brief Constructor for HDFIO class
+   * 
+   * @param size array of size^rank
+   * @param memory_type_in Type for 
+   * @see HDFIO
+   */
+  HDFIO(hsize_t size, int rank_in, hid_t memory_type_in)
+  {
+    hsize_t mem_dims_in[rank_in];
+    for(int i=0; i<rank_in; ++i)
+      mem_dims_in[i] = size;
+
+    _initialize(mem_dims_in, rank_in, memory_type_in, HDFIO_VERBOSE_OFF);
+  }
 
   /**
    * @brief Constructor for HDFIO class
