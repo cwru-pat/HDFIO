@@ -29,7 +29,7 @@ public:
     return array[i];
   }
 
-  void setValue(hsize_t value)
+  void setValues(hsize_t value)
   {
     for(int i = 0; i < rank; ++i)
       array[i] = value;
@@ -62,6 +62,7 @@ private:
 
   _newSize(int rank)
   {
+    _delete();
     dims = new H5SizeArray(rank);
     maxdims = new H5SizeArray(rank);
     start = new H5SizeArray(rank);
@@ -94,10 +95,14 @@ public:
   void setRank( rank_in )
   {
     rank = rank_in;
-
-    _delete();
+    
     _newSize(rank);
 
+  }
+
+  ~H5SParams()
+  {
+    _delete();
   }
 
   void setDefaults(int rank_in, hsize_t *dims_in)
@@ -105,11 +110,12 @@ public:
     setRank(rank_in);
     dims.setValues(dims_in);
     maxdims.setValues(dims);
-    start.setValue(0);
-    stride.setValue(1);
-    count.setValues(dims);
-    block.setValue(1);
-    chunk.setValue(dims);
+    start.setValues(0);
+    setStride(1);
+    //stride.setValues(1);
+    //count.setValues(dims);
+    block.setValues(1);
+    chunk.setValues(dims);
   }
 
   void setStride(hsize_t *stride_in)
@@ -121,7 +127,7 @@ public:
 
   void setStride(hsize_t stride_in)
   {
-    stride.setValue(stride)
+    stride.setValues(stride)
     for(int i = 0; i < rank; ++i)
       count[i] = dims[i] / stride[i];
   }
@@ -133,6 +139,7 @@ public:
 
   void setHyperslabAppend(hid_t dset_id)
   {
+    herr_t status;
     //get id for dspace
     id = H5Dget_space(dset_id); 
     //initialize dspace params 
@@ -141,8 +148,10 @@ public:
     //get max dims and dims of dsapce
     status = H5Sget_simple_extent_dims(id, dims[], maxdims[]);
     
+    block.setValues(1);
+
     //increase dspace dims by 1 (this is so dataset can be extended)
-    dims[0] += 1;
+    dims[0] += 1;//block[0]; if wanted multi line write?
     
     //set stride and count
     setStride(1);
@@ -154,7 +163,78 @@ public:
     //last line to start write
     start[0] = dims[0] - 1;
     
-    block.setValues(0);
+    //seting hyperslab
+    status = H5Sselect_hyperslab(id, H5S_SELECT_SET, start[], stride[], count[], block[]);
+  }
+
+  void setNm1DHyperslab(int drop_dim, hsize_t start_drop_dim, hsize_t stride_in)
+  {
+    herr_t status;
+    //get id for dspace. Assumes rank and dims set
+    id = H5Screate_simple(rank, dims[], maxdims[]);
+    
+    block.setValues(1);
+    
+    //set stride and count
+    setStride(stride_in);
+    
+    //write slab in cut dim
+    count[drop_dim] = 1;
+
+    //start at begining of 
+    start.setValues(0);
+    //last line to start write
+    start[drop_dim] = start_drop_dim;
+    
+    //seting hyperslab
+    status = H5Sselect_hyperslab(id, H5S_SELECT_SET, start[], stride[], count[], block[]);
+  }
+
+  void set1DHyperslab(int print_dim, hsize_t * start_in, hsize_t stride_in)
+  {
+    herr_t status;
+    //get id for dspace. Assumes rank and dims set
+    id = H5Screate_simple(rank, dims[], maxdims[]);
+    
+    block.setValues(1);
+    
+    //start at begining of 
+    start.setValues(start_in);
+
+    //set stride
+    stride.setValues(stride_in);
+    //set count
+    count.setValues(1);
+    //out dim
+    count[print_dim] = (dims[print_dim] - start[print_dim]) / strid[print_dim];
+
+    
+    //rod dimm;
+    start[drop_dim] = 0;
+    
+    //seting hyperslab
+    status = H5Sselect_hyperslab(id, H5S_SELECT_SET, start[], stride[], count[], block[]);
+  }
+  void setNDUndersampleHyperslab(hsize_t * start_in, hsize_t * stride_in)
+  {
+    start.setValues(start_in);
+    herr_t status;
+    //get id for dspace. Assumes rank and dims set
+    id = H5Screate_simple(rank, dims[], maxdims[]);
+    
+    block.setValues(1);
+    
+    //set stride and count
+    stride.setValues(stride_in);
+    //output rod in
+
+    //out dim
+    count[print_dim] = dims[print_dim] / strid[print_dim];
+
+    //start at begining of 
+    start.setValues(start_in);
+    //rod dimm;
+    start[drop_dim] = 0;
     
     //seting hyperslab
     status = H5Sselect_hyperslab(id, H5S_SELECT_SET, start[], stride[], count[], block[]);
