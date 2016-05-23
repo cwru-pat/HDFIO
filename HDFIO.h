@@ -47,9 +47,9 @@ public:
 class H5SParams
 {
 private:
-  int rank
+  int rank;
 
-  _delete()
+  void _delete()
   {
     delete dims;
     delete maxdims;
@@ -60,7 +60,7 @@ private:
     delete chunk; 
   }
 
-  _newSize(int rank)
+  void _newSize(int rank)
   {
     _delete();
     dims = new H5SizeArray(rank);
@@ -97,7 +97,6 @@ public:
     rank = rank_in;
     
     _newSize(rank);
-
   }
 
   ~H5SParams()
@@ -450,11 +449,11 @@ public:
   {
     mem_dspace.setStride(stride_in);
   }
-
+  
   bool writeSampledArrayToFile(void *array, std::string file_name, std::string dset_name, bool append_flag)
   { 
     
-    status = H5Sselect_hyperslab(mem_dspace.id, H5S_SELECT_SET, mem_dspace.start[], mem_dspace.stride[], mem_dspace.count[], mem_dspace.block[]); //selects parts of memory to write
+    //status = H5Sselect_hyperslab(mem_dspace.id, H5S_SELECT_SET, mem_dspace.start[], mem_dspace.stride[], mem_dspace.count[], mem_dspace.block[]); //selects parts of memory to write
     
     file_id = _openOrCreateFile(file_name,read_flag);
     
