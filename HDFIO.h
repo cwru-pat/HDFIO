@@ -72,6 +72,22 @@ private:
     chunk = new H5SizeArray(rank);
   }
 
+  void _setCount()
+  {
+    for(int i = 0; i < rank; ++i)
+    {
+      count[i] = (dims[i] - start[i]) / strid[i];
+      if (count[i] < 1) {
+        count[i] = 1;
+        //output warning statement//Note that I take advantage of this in code
+      }
+      else if (count[i] > dims[i]) {
+        count[i] = dims[i];
+        //output verbose statement
+      }
+    }    
+  }
+
 public:
   hid_t type;
   hid_t id;
@@ -109,28 +125,13 @@ public:
     setRank(rank_in);
     dims.setValues(dims_in);
     maxdims.setValues(dims);
-    start.setValues(0);
-    setStride(1);
-    //stride.setValues(1);
-    //count.setValues(dims);
     block.setValues(1);
+    start.setValues(0);
+    stride.setValues(1);
+    _setCount();
     chunk.setValues(dims);
   }
-
-  void setStride(hsize_t *stride_in)
-  {
-    stride.setValues(stride)
-    for(int i = 0; i < rank; ++i)
-      count[i] = dims[i] / stride[i];
-  }
-
-  void setStride(hsize_t stride_in)
-  {
-    stride.setValues(stride)
-    for(int i = 0; i < rank; ++i)
-      count[i] = dims[i] / stride[i];
-  }
-
+  
   int rank()
   {
     return rank;
@@ -139,6 +140,11 @@ public:
   void setHyperslabAppend(hid_t dset_id)
   {
     herr_t status;
+
+    //checks if dspace for id exists if so closes it
+    if(H5Sis_simple(id));
+      status = H5Sclose(id); 
+
     //get id for dspace
     id = H5Dget_space(dset_id); 
     //initialize dspace params 
@@ -152,89 +158,45 @@ public:
     //increase dspace dims by 1 (this is so dataset can be extended)
     dims[0] += 1;//block[0]; if wanted multi line write?
     
-    //set stride and count
-    setStride(1);
-    //appending 1 line so fix count
-    count[0] = 1;
-
     //start at begining of 
     start.setValues(0);
+
     //last line to start write
     start[0] = dims[0] - 1;
-    
-    //seting hyperslab
-    status = H5Sselect_hyperslab(id, H5S_SELECT_SET, start[], stride[], count[], block[]);
-  }
 
-  void setNm1DHyperslab(int drop_dim, hsize_t start_drop_dim, hsize_t stride_in)
-  {
-    herr_t status;
-    //get id for dspace. Assumes rank and dims set
-    id = H5Screate_simple(rank, dims[], maxdims[]);
-    
-    block.setValues(1);
-    
     //set stride and count
-    setStride(stride_in);
-    
-    //write slab in cut dim
-    count[drop_dim] = 1;
+    stride.setValues(1);
 
-    //start at begining of 
-    start.setValues(0);
-    //last line to start write
-    start[drop_dim] = start_drop_dim;
+    _setCount();
+    //appending 1 line so fix count
+    count[0] = 1;
     
     //seting hyperslab
     status = H5Sselect_hyperslab(id, H5S_SELECT_SET, start[], stride[], count[], block[]);
   }
 
-  void set1DHyperslab(int print_dim, hsize_t * start_in, hsize_t stride_in)
+  void setUndersampleHyperslab(hsize_t *start_in, hsize_t *stride_in)
   {
     herr_t status;
-    //get id for dspace. Assumes rank and dims set
-    id = H5Screate_simple(rank, dims[], maxdims[]);
-    
+
     block.setValues(1);
     
     //start at begining of 
     start.setValues(start_in);
 
-    //set stride
+    //set stride and count
     stride.setValues(stride_in);
+
     //set count
-    count.setValues(1);
-    //out dim
-    count[print_dim] = (dims[print_dim] - start[print_dim]) / strid[print_dim];
+    _setCount();
 
-    
-    //rod dimm;
-    start[drop_dim] = 0;
-    
-    //seting hyperslab
-    status = H5Sselect_hyperslab(id, H5S_SELECT_SET, start[], stride[], count[], block[]);
-  }
-  void setNDUndersampleHyperslab(hsize_t * start_in, hsize_t * stride_in)
-  {
-    start.setValues(start_in);
-    herr_t status;
+    //checks if dspace for id exists if so closes it
+    if(H5Sis_simple( id ));
+      status = H5Sclose(id); 
+
     //get id for dspace. Assumes rank and dims set
     id = H5Screate_simple(rank, dims[], maxdims[]);
-    
-    block.setValues(1);
-    
-    //set stride and count
-    stride.setValues(stride_in);
-    //output rod in
 
-    //out dim
-    count[print_dim] = dims[print_dim] / strid[print_dim];
-
-    //start at begining of 
-    start.setValues(start_in);
-    //rod dimm;
-    start[drop_dim] = 0;
-    
     //seting hyperslab
     status = H5Sselect_hyperslab(id, H5S_SELECT_SET, start[], stride[], count[], block[]);
   }
@@ -347,10 +309,32 @@ private:
 
   void _createOpenDataset(std::string dset_name)
   {
-    dset_dspace.setRank(mem_dspace.rank());
-    
+    /* 
+    * This shrinks the file dspace to be minimal dimensions i.e. if there is a 
+    * mem_dspace.dim that is 1 it will skip over unless all are one then it 
+    * sets the dset rank to 1 and dset_dspace.dim[0] = 1.
+    */
+    int new_rank = 0;
     for(int i = 0; i < dset_dspace_rank; ++i)
-      dset_dspace.dims[i] = mem_dspace.dims[i] / mem_dspace.stride[i];
+      if( mem_dspace.block[i]*mem_dspace.count[i] > 1 )
+        new_rank++;
+
+    if(new_rank == 0)
+    {
+      dset_dspace.setRank(1);
+      dset_dspace.dims[0] = 1;
+    }
+    else 
+    {
+      dset_dspace.setRank(new_rank);
+      int j;
+      for(int i = 0; i < dset_dspace_rank; ++i)
+        if( mem_dspace.block[i]*mem_dspace.count[i] > 1 )
+        {
+          dset_dspace.dims[j] = mem_dspace.block[i]*mem_dspace.count[i];
+          j++
+        }
+    }
 
     dset_dspace.maxdims.setValues(dset_dspace_dims[]);
 
@@ -439,17 +423,37 @@ public:
   {
     dset_dspace.type = dataset_type_in;
   }
-
-  void setMemStride(hsize_t *stride_in)
-  {
-    mem_dspace.setStride(stride_in);
-  }
-
-  void setMemStride(hsize_t stride_in)
-  {
-    mem_dspace.setStride(stride_in);
-  }
   
+  void setMemHyperslab(hsize_t *start_in, hsize_t *stride_in)
+  {
+    mem_dspace.setUndersampleHyperslab(start_in, stride_in);
+  }
+
+  void setMemHyperslab1D(int print_dim, hsize_t *start_in, hsize_t stride_in)
+  {
+    H5SizeArray stride_arr(mem_dspace.rank());
+
+    //set stride too large so that count will be 1
+    stride_arr.setValues(mem_dspace.dims[]);
+    //fix stride in print dim to be reasonable
+    stride_arr[print_dim] = stride_in;
+    
+    mem_dspace.setUndersampleHyperslab(start_in, stride_arr[]);
+  }
+
+  void setMemHyperslabNm1D(int drop_dim, hsize_t *start_in, hsize_t *stride_in)
+  {
+    H5SizeArray stride_arr(mem_dspace.rank());
+    
+    //set stride from input
+    stride_arr.setValues(stride_in);
+    
+    //ensure stride in drop dim is too large so count will be 1
+    stride_arr[drop_dim]=dims[drop_dim]
+
+    setUndersampleHyperslab(start_in, stride_arr[]);
+  }
+
   bool writeSampledArrayToFile(void *array, std::string file_name, std::string dset_name, bool append_flag)
   { 
     
