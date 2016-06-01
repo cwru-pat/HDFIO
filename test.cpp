@@ -10,9 +10,7 @@ int main()
   for(int i = 0; i<ARRAY_RANK; ++i)
     gridsize *= dims[i];
 
-  float diff=0.,
-        f[gridsize],
-        g[gridsize];
+  float f[gridsize];
   
   for(hsize_t i = 0; i<gridsize; ++i)
   {
