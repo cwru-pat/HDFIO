@@ -1,5 +1,4 @@
 #include <hdf5.h>
-#include <hdf5_hl.h>
 #include <iostream>
 #include <string>
 
@@ -222,7 +221,9 @@ private:
     H5IO_DEBUG_COUT << "Done!" << std::endl;
     compression_level = 9;
     mem_dspace.type=mem_type_in;
+    dset_dspace.type=mem_type_in;
     mem_dspace.setDefaults(mem_rank_in, mem_dims_in);
+    dset_dspace.setDefaults(mem_rank_in, mem_dims_in);
     mem_dspace.id = H5Screate_simple(mem_dspace.getRank(), mem_dspace.dims.getPtr(), mem_dspace.maxdims.getPtr());
   }
 
@@ -340,7 +341,7 @@ private:
     }
 
     dset_dspace.maxdims.setValues(dset_dspace.dims.getPtr());
-
+    
 
     dset_dspace.id = H5Screate_simple(dset_dspace.getRank(), dset_dspace.dims.getPtr(), dset_dspace.maxdims.getPtr());
     
@@ -365,6 +366,23 @@ private:
     return false; 
        
   }
+
+  bool _checkDatasetExists(std::string dset_name)
+  {
+    hid_t temp;
+     H5IO_DEBUG_COUT << "Seeing if dataset exists..." << std::flush;
+    _pauseH5ErrorHandeling();
+    temp = H5Dopen(file_id, dset_name.c_str(), H5P_DEFAULT);
+    _resumeH5ErrorHandeling();
+
+    if( temp < 0 )
+      return false;
+    
+    H5Dclose(temp);
+    H5IO_DEBUG_COUT << "Done!" << std::endl << std::flush;
+    return true;
+  }
+
 
   void _setCompressionPList()
   {
@@ -466,12 +484,12 @@ public:
     
     //status = H5Sselect_hyperslab(mem_dspace.id, H5S_SELECT_SET, mem_dspace.start.getPtr(), mem_dspace.stride.getPtr(), mem_dspace.count.getPtr(), mem_dspace.block.getPtr()); //selects parts of memory to write
     
-    file_id = _openOrCreateFile(file_name,append_flag);
-    
+    _openOrCreateFile(file_name,append_flag);
+  
     if(append_flag)
     {
       //check if dataset does NOT exists
-      if( ! H5LTfind_dataset(file_id, dset_name.c_str()) )
+      if( ! _checkDatasetExists(dset_name) )
           _createCloseDatasetAppend(dset_name);
           
       dset_id = H5Dopen( file_id, dset_name.c_str() , H5P_DEFAULT);
@@ -488,7 +506,7 @@ public:
     }
     else //create new file
     {
-      if( ! H5LTfind_dataset(file_id, dset_name.c_str()) )
+      if( _checkDatasetExists(dset_name) )
       {
         H5IO_VERBOSE_COUT << "Can't write dataset to one that exists. Aborting write." << std::endl;
         return false;
@@ -496,11 +514,11 @@ public:
       else
         _createOpenDataset(dset_name);
     }
-    
-    status = H5Dwrite(dset_dspace.id, mem_dspace.type, mem_dspace.id, dset_dspace.id, H5P_DEFAULT, array);
 
-    return true;
+    status = H5Dwrite(dset_id, mem_dspace.type, mem_dspace.id, dset_dspace.id, H5P_DEFAULT, array);
+    
     _closeAllTheThings();//needs to close the things
+    return true;
   }
 
 };
