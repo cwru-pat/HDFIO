@@ -16,21 +16,11 @@ int main()
   
   for(hsize_t i = 0; i<gridsize; ++i)
   {
-    f[i] = std::rand() / ((float) RAND_MAX);
-    g[i]=0.;
+    f[i] = i;
   }
 
-  HDFIO myIO(dims, ARRAY_RANK, H5T_NATIVE_FLOAT, HDFIO_VERBOSE_DEBUG);
-  myIO.setDatasetType(H5T_NATIVE_DOUBLE);
-  myIO.setHyperslabParameters(1);
-  myIO.writeArrayToFile(f, "test.h5.gz", "dataset1");
-  myIO.readFileToArray(g,"test.h5.gz","dataset1");
-  for(hsize_t i = 0; i<gridsize; ++i)
-  {
-    diff+=f[i]-g[i];
-  }
-  std::cout << "f - g = " << diff << std::endl;
-  return 0;
-
+  H5IO myIO(ARRAY_RANK, dims, H5T_NATIVE_DOUBLE);
+  myIO.writeSampledArrayToFile(f, "test.h5.gz", "dataset1",false);
+  
   exit(EXIT_SUCCESS);
 }
