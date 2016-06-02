@@ -8,8 +8,9 @@
 #define H5IO_VERBOSE_ON 1
 #define H5IO_VERBOSE_DEBUG 2
 
-#define H5IO_VERBOSE_COUT if( verbosity_level >= H5IO_VERBOSE_ON ) std::cout
-#define H5IO_DEBUG_COUT if( verbosity_level == H5IO_VERBOSE_DEBUG ) std::cout
+#define H5IO_VERBOSE_COUT if( verbosity_level >= H5IO_VERBOSE_ON ) std::cout << \
+  (verbosity_level == H5IO_VERBOSE_DEBUG ? ("[" + std::to_string(__LINE__) + "] ") : "")
+#define H5IO_DEBUG_COUT if( verbosity_level == H5IO_VERBOSE_DEBUG ) std::cout << "[" << __LINE__ << "] "
 
 class H5SizeArray
 {
