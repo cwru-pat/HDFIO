@@ -55,6 +55,14 @@ public:
     array = new hsize_t[rank];
   }
 
+  void print()
+  {
+    std::cout << std::endl;
+    for(int i=0;i<rank;i++)
+      std::cout << array[i] << " ";
+
+    std::cout << std::endl << std::flush;
+  }
 };
 
 
@@ -62,23 +70,7 @@ class H5SParams
 {
 private:
   int rank;
-
-  void _setCount()
-  {
-    for(int i = 0; i < rank; ++i)
-    {
-      count[i] = (dims[i] - start[i]) / stride[i];
-      if (count[i] < 1) {
-        count[i] = 1;
-        //output warning statement//Note that I take advantage of this in code
-      }
-      else if (count[i] > dims[i])
-      {
-        count[i] = dims[i];
-        //output verbose statement
-      }
-    }    
-  }
+  int verbosity_level;
 
 public:
   hid_t type;
@@ -117,6 +109,28 @@ public:
 
   ~H5SParams() {}
 
+  void setVerbosity(int verbosity_in)
+  {
+    verbosity_level = verbosity_in;
+  }
+
+  void setCount()
+  {
+    for(int i = 0; i < rank; ++i)
+    {
+      count[i] = (dims[i] - start[i]) / stride[i];
+      if (count[i] < 1) {
+        count[i] = 1;
+        //output warning statement//Note that I take advantage of this in code
+      }
+      else if (count[i] > dims[i])
+      {
+        count[i] = dims[i];
+        //output verbose statement
+      }
+    }    
+  }
+
   void setDefaults(int rank_in, hsize_t *dims_in)
   {
     setRank(rank_in);
@@ -125,7 +139,7 @@ public:
     block.setValues(1);
     start.setValues((hsize_t) 0);
     stride.setValues(1);
-    _setCount();
+    setCount();
     chunk.setValues(dims.getPtr());
   }
   
@@ -134,45 +148,7 @@ public:
     return rank;
   }
 
-  void setHyperslabAppend(hid_t dset_id)
-  {
-    herr_t status;
-
-    //checks if dspace for id exists if so closes it
-    if(H5Sis_simple(id))
-      status = H5Sclose(id); 
-
-    //get id for dspace
-    id = H5Dget_space(dset_id); 
-    //initialize dspace params 
-    setRank( H5Sget_simple_extent_ndims(id) ); 
-
-    //get max dims and dims of dsapce
-    status = H5Sget_simple_extent_dims(id, dims.getPtr(), maxdims.getPtr());
-    
-    block.setValues(1);
-
-    //increase dspace dims by 1 (this is so dataset can be extended)
-    dims[0] += 1;//block[0]; if wanted multi line write?
-    
-    //start at begining of 
-    start.setValues((hsize_t) 0);
-
-    //last line to start write
-    start[0] = dims[0] - 1;
-
-    //set stride and count
-    stride.setValues(1);
-
-    _setCount();
-    //appending 1 line so fix count
-    count[0] = 1;
-    
-    //seting hyperslab
-    status = H5Sselect_hyperslab(id, H5S_SELECT_SET, start.getPtr(), stride.getPtr(), count.getPtr(), block.getPtr());
-  }
-
-  void setUndersampleHyperslab(hsize_t *start_in, hsize_t *stride_in)
+  void setHyperslab(hsize_t *start_in, hsize_t *stride_in)
   {
     herr_t status;
 
@@ -185,11 +161,7 @@ public:
     stride.setValues(stride_in);
 
     //set count
-    _setCount();
-
-    //checks if dspace for id exists if so closes it
-    if(H5Sis_simple( id ))
-      status = H5Sclose(id); 
+    setCount();
 
     //get id for dspace. Assumes rank and dims set
     id = H5Screate_simple(rank, dims.getPtr(), maxdims.getPtr());
@@ -198,6 +170,21 @@ public:
     status = H5Sselect_hyperslab(id, H5S_SELECT_SET, start.getPtr(), stride.getPtr(), count.getPtr(), block.getPtr());
   }
 
+  /**
+   * @brief Sets a hyperslab assuming everything is defined (except count)
+   * @details This assumes that id, start, stride, and block have been defined.
+   * It then calculates the count and sets a new hyperslab.
+   */
+  void setHyperslab()
+  {
+    herr_t status;
+
+    //set count
+    setCount();
+
+    //seting hyperslab
+    status = H5Sselect_hyperslab(id, H5S_SELECT_SET, start.getPtr(), stride.getPtr(), count.getPtr(), block.getPtr());
+  }
 };
 
 class H5IO
@@ -246,7 +233,7 @@ private:
     H5Eset_auto(H5E_DEFAULT,default_error_func,default_error_out);
   }
 
-  bool _openOrCreateFile(std::string file_name, bool append_flag)
+  bool _openOrCreateFile(std::string file_name, bool read_flag)
   {
     H5IO_DEBUG_COUT << "Seeing if file exists..." << std::flush;
     _pauseH5ErrorHandeling();
@@ -255,7 +242,7 @@ private:
 
     if(file_id < 0)
     {
-      if(append_flag)
+      if(read_flag)
       {
         H5IO_DEBUG_COUT << "No such file." << std::endl;
         H5IO_VERBOSE_COUT << "No data to read: aborting read." << std::endl << std::flush;
@@ -292,7 +279,13 @@ private:
 
   void _createCloseDatasetAppend(std::string dset_name)
   {
+    H5IO_DEBUG_COUT << "Creating dataset for appending...." << std::endl << std::flush;
+    
+    H5IO_DEBUG_COUT << "  Setting dataspace rank..." << std::flush;
     dset_dspace.setRank(mem_dspace.getRank()+1);
+    H5IO_DEBUG_COUT << "Done!" << std::endl << std::flush;
+    
+    H5IO_DEBUG_COUT << "  Formating dataspace..." << std::flush;
     dset_dspace.dims[0] = 0;
     
     for(int i = 1; i < dset_dspace.getRank(); ++i)
@@ -300,19 +293,37 @@ private:
 
     dset_dspace.maxdims.setValues(dset_dspace.dims.getPtr());
     dset_dspace.maxdims[0] = H5S_UNLIMITED;
-
-    dset_dspace.id = H5Screate_simple(dset_dspace.getRank(), dset_dspace.dims.getPtr(), dset_dspace.maxdims.getPtr());
+    H5IO_DEBUG_COUT << "Done!" << std::endl << std::flush;
     
+    H5IO_DEBUG_COUT << "  Creating dataspace..." << std::flush;
+    dset_dspace.id = H5Screate_simple(dset_dspace.getRank(), dset_dspace.dims.getPtr(), dset_dspace.maxdims.getPtr());
+    H5IO_DEBUG_COUT << "Done!" << std::endl << std::flush;
+
     dset_dspace.chunk.setValues(dset_dspace.dims.getPtr());
+    dset_dspace.chunk[0] = 1; // so that chunk has positive values
     _setCompressionPList();
 
+    H5IO_DEBUG_COUT << "  Creating dataset..." << std::flush;
     dset_id = H5Dcreate(file_id, dset_name.c_str(), dset_dspace.type, dset_dspace.id, H5P_DEFAULT, dset_chunk_plist, H5P_DEFAULT);
+    H5IO_DEBUG_COUT << "Done!" << std::endl << std::flush;
+
+    H5IO_DEBUG_COUT << "  Closing dataset..." << std::flush;
     status = H5Dclose(dset_id);
+    H5IO_DEBUG_COUT << "Done!" << std::endl << std::flush;
+    H5IO_DEBUG_COUT << "  Closing dataspace..." << std::flush;
     status = H5Sclose(dset_dspace.id);
+    H5IO_DEBUG_COUT << "Done!" << std::endl << std::flush;
+
+    H5IO_DEBUG_COUT << "  Closing Compression plist..." << std::flush;
+    status = H5Pclose(dset_chunk_plist);
+    H5IO_DEBUG_COUT << "Done!" << std::endl << std::flush;
+
+    H5IO_DEBUG_COUT << "Finisehd creating dataset!" << std::endl << std::flush;
   }
 
   void _createOpenDataset(std::string dset_name)
   {
+    herr_t status;
     /* 
     * This shrinks the file dspace to be minimal dimensions i.e. if there is a 
     * mem_dspace.dim that is 1 it will skip over unless all are one then it 
@@ -349,6 +360,7 @@ private:
     _setCompressionPList();
 
     dset_id = H5Dcreate(file_id, dset_name.c_str(), dset_dspace.type, dset_dspace.id, H5P_DEFAULT, dset_chunk_plist, H5P_DEFAULT);
+    status = H5Pclose(dset_chunk_plist);
   }
 
   bool _checkAppend()
@@ -358,7 +370,7 @@ private:
       if(dset_dspace.maxdims[0] == H5S_UNLIMITED || dset_dspace.dims[0] <= dset_dspace.maxdims[0])
       {
         for( int i = 1; i < dset_dspace.getRank(); ++i )
-          if( dset_dspace.dims[i] < mem_dspace.dims[i-1]/mem_dspace.stride[i-1] )
+          if( dset_dspace.dims[i] != mem_dspace.count[i-1]*mem_dspace.block[i-1])
             return false;
         return true;
       }
@@ -375,11 +387,13 @@ private:
     temp = H5Dopen(file_id, dset_name.c_str(), H5P_DEFAULT);
     _resumeH5ErrorHandeling();
 
-    if( temp < 0 )
+    if( temp < 0 ) {
+      H5IO_DEBUG_COUT << "Dataset does not exist." << std::endl;
       return false;
-    
+    }
+
     H5Dclose(temp);
-    H5IO_DEBUG_COUT << "Done!" << std::endl << std::flush;
+    H5IO_DEBUG_COUT << "Dataset exists!" << std::endl << std::flush;
     return true;
   }
 
@@ -393,6 +407,69 @@ private:
     
     if(_checkCompression())
       status = H5Pset_deflate(dset_chunk_plist, compression_level);
+  }
+
+  bool _setAppend()
+  {
+    herr_t status;
+    int tmp_rank;
+    H5IO_DEBUG_COUT << "Selecting hyperslab to append to..." << std::endl << std::flush;
+
+    //get id for dspace
+    H5IO_DEBUG_COUT << "  Getting dataspace ID..." << std::flush;
+    dset_dspace.id = H5Dget_space(dset_id);
+    H5IO_DEBUG_COUT << "Done!" << std::endl << std::flush;
+
+    //initialize dspace params 
+    H5IO_DEBUG_COUT << "  Getting rank of dataspace..." << std::flush;
+    tmp_rank = H5Sget_simple_extent_ndims(dset_dspace.id);
+    H5IO_DEBUG_COUT << "Done!" << std::endl << std::flush;
+
+    dset_dspace.setRank(tmp_rank); 
+
+    //get max dims and dims of dsapce
+    H5IO_DEBUG_COUT << "  Getting dims and maxdims of dataspace..." << std::flush;
+    status = H5Sget_simple_extent_dims(dset_dspace.id, dset_dspace.dims.getPtr(), dset_dspace.maxdims.getPtr());
+    H5IO_DEBUG_COUT << "Done!" << std::endl << std::flush;    
+    
+    H5IO_DEBUG_COUT << "  Formating datspace for next row..." << std::flush;
+
+    dset_dspace.stride.setValues(1);
+    dset_dspace.block.setValues(1);
+    dset_dspace.start.setValues((hsize_t) 0);
+
+    //start at end of current last line begining of 
+    dset_dspace.start[0]=dset_dspace.dims[0];
+    
+    //increase dspace dims by 1 (this is so dataset can be extended)
+    dset_dspace.dims[0] += 1;//block[0]; if wanted multi line write?
+    H5IO_DEBUG_COUT << "Done!" << std::endl << std::flush;
+
+    H5IO_DEBUG_COUT << "  Closing dataspace..." << std::flush;
+    status = H5Sclose(dset_dspace.id);
+    H5IO_DEBUG_COUT << "Done!" << std::endl << std::flush;
+
+    if(_checkAppend()){
+        H5IO_DEBUG_COUT << "  Extending dataset..." << std::flush;
+        status = H5Dset_extent(dset_id, dset_dspace.dims.getPtr());
+        H5IO_DEBUG_COUT << "Done!" << std::endl << std::flush;
+    } else {
+        H5IO_VERBOSE_COUT << "Can't extend dataset for an append. Aborting write." << std::endl;
+        return false;
+    }
+
+    H5IO_DEBUG_COUT << "  Reopening dataspace..." << std::flush;
+    dset_dspace.id = H5Dget_space(dset_id);
+    H5IO_DEBUG_COUT << "Done!" << std::endl << std::flush;
+    
+    //seting hyperslab
+    H5IO_DEBUG_COUT << "  Selecting hyperslab for append..." << std::flush;
+    dset_dspace.setHyperslab();
+    H5IO_DEBUG_COUT << "Done!" << std::endl << std::flush;
+
+    H5IO_DEBUG_COUT << "Hyperslab selected!" << std::endl << std::flush;
+
+    return true;
   }
 
   void _closeAllTheThings()
@@ -435,6 +512,8 @@ public:
   void setVerbosity(int verbosity_in)
   {
     verbosity_level = verbosity_in;
+    mem_dspace.setVerbosity(verbosity_level);
+    dset_dspace.setVerbosity(verbosity_level);
   }
 
   /**
@@ -451,40 +530,40 @@ public:
   
   void setMemHyperslab(hsize_t *start_in, hsize_t *stride_in)
   {
-    mem_dspace.setUndersampleHyperslab(start_in, stride_in);
+    mem_dspace.start.setValues(start_in);
+    mem_dspace.stride.setValues(stride_in);
+
+    mem_dspace.setHyperslab();
   }
 
   void setMemHyperslab1D(int print_dim, hsize_t *start_in, hsize_t stride_in)
   {
-    H5SizeArray stride_arr(mem_dspace.getRank());
-
+    mem_dspace.start.setValues(start_in);
     //set stride too large so that count will be 1
-    stride_arr.setValues(mem_dspace.dims.getPtr());
+    mem_dspace.stride.setValues(mem_dspace.dims.getPtr());
     //fix stride in print dim to be reasonable
-    stride_arr[print_dim] = stride_in;
+    mem_dspace.stride[print_dim]=stride_in;
     
-    mem_dspace.setUndersampleHyperslab(start_in, stride_arr.getPtr());
+    mem_dspace.setHyperslab();
   }
 
   void setMemHyperslabNm1D(int drop_dim, hsize_t *start_in, hsize_t *stride_in)
   {
-    H5SizeArray stride_arr(mem_dspace.getRank());
-    
-    //set stride from input
-    stride_arr.setValues(stride_in);
+    mem_dspace.start.setValues(start_in);
+    mem_dspace.stride.setValues(stride_in);
     
     //ensure stride in drop dim is too large so count will be 1
-    stride_arr[drop_dim]=mem_dspace.dims[drop_dim];
+    mem_dspace.stride[drop_dim]=mem_dspace.dims[drop_dim];
 
-    mem_dspace.setUndersampleHyperslab(start_in, stride_arr.getPtr());
+    mem_dspace.setHyperslab();
   }
 
-  bool writeSampledArrayToFile(void *array, std::string file_name, std::string dset_name, bool append_flag)
+  bool writeArrayToFile(void *array, std::string file_name, std::string dset_name, bool append_flag)
   { 
     
     //status = H5Sselect_hyperslab(mem_dspace.id, H5S_SELECT_SET, mem_dspace.start.getPtr(), mem_dspace.stride.getPtr(), mem_dspace.count.getPtr(), mem_dspace.block.getPtr()); //selects parts of memory to write
     
-    _openOrCreateFile(file_name,append_flag);
+    _openOrCreateFile(file_name,false);
   
     if(append_flag)
     {
@@ -492,33 +571,28 @@ public:
       if( ! _checkDatasetExists(dset_name) )
           _createCloseDatasetAppend(dset_name);
           
+      H5IO_DEBUG_COUT << "Opening dataset..." << std::flush;
       dset_id = H5Dopen( file_id, dset_name.c_str() , H5P_DEFAULT);
+      H5IO_DEBUG_COUT << "Done!" << std::endl << std::flush;
 
-      dset_dspace.setHyperslabAppend(dset_id);
-
-      if(_checkAppend())
-        status = H5Dset_extent(dset_id, dset_dspace.dims.getPtr());
-      else
-      {
-        H5IO_VERBOSE_COUT << "Can't extend dataset for an append. Aborting write." << std::endl;
-        return false;
-      }
-    }
-    else //create new file
-    {
-      if( _checkDatasetExists(dset_name) )
-      {
-        H5IO_VERBOSE_COUT << "Can't write dataset to one that exists. Aborting write." << std::endl;
+      _setAppend();
+    } else { //create new file
+      if( _checkDatasetExists(dset_name) ) {
+        H5IO_DEBUG_COUT << "Can't write dataset to one that exists. Aborting write." << std::endl;
         return false;
       }
       else
         _createOpenDataset(dset_name);
     }
-
+    H5IO_DEBUG_COUT << "Writing data..." << std::flush;
     status = H5Dwrite(dset_id, mem_dspace.type, mem_dspace.id, dset_dspace.id, H5P_DEFAULT, array);
-    
-    _closeAllTheThings();//needs to close the things
+    H5IO_DEBUG_COUT << "Done!" << std::endl << std::flush;
+
+
+    H5Sclose(dset_dspace.id);
+    H5Fclose(file_id);
+    H5Dclose(dset_id);
+
     return true;
   }
-
 };
