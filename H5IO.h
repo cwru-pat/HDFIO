@@ -5,9 +5,6 @@
 #define H5IO_h
 
 #include <hdf5.h>
-#include <iostream>
-#include <string>
-
 #include "H5SizeArray.h"
 #include "H5SParams.h"
 
@@ -59,6 +56,8 @@ private:
   void _closeFileThings();
 
 public:
+
+  enum verbosity {off, verbose, debug};
 
   H5IO(int mem_rank_in, H5SizeArray &mem_dims_in, hid_t mem_type_in);
   

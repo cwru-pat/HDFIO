@@ -22,5 +22,5 @@ H5IO.o: H5IO.cpp H5IO.h H5SParams.h H5SizeArray.h
 	$(COMPILER) -c $(FLAGS) H5IO.cpp
 
 
-test.o: test.cpp H5IO.h H5SParams.h H5SizeArray.h
+test.o: test.cpp H5IO.o H5SParams.o H5SizeArray.o H5IO.h H5SParams.h H5SizeArray.h
 	$(COMPILER) -c $(FLAGS)  test.cpp

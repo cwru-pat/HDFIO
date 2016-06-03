@@ -1,3 +1,5 @@
+#include <hdf5.h>
+#include "H5SizeArray.h"
 #include "H5SParams.h"
 
 H5SParams::H5SParams()

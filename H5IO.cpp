@@ -1,16 +1,18 @@
+#include <hdf5.h>
+#include <iostream>
+#include <string>
+
+#include "H5SizeArray.h"
+#include "H5SParams.h"
 #include "H5IO.h"
 
 #define S1(x) #x
 #define S2(x) S1(x)
 #define LOCATION "[" __FILE__ ":" S2(__LINE__) "] "
 
-#define H5IO_VERBOSE_OFF 0
-#define H5IO_VERBOSE_ON 1
-#define H5IO_VERBOSE_DEBUG 2
-
-#define H5IO_VERBOSE_COUT if( verbosity_level >= H5IO_VERBOSE_ON ) std::cout << \
-  (verbosity_level == H5IO_VERBOSE_DEBUG ? LOCATION : "")
-#define H5IO_DEBUG_COUT if( verbosity_level == H5IO_VERBOSE_DEBUG ) std::cout << LOCATION
+#define H5IO_VERBOSE_COUT if( verbosity_level >= verbose ) std::cout << \
+  (verbosity_level == debug ? LOCATION : "")
+#define H5IO_DEBUG_COUT if( verbosity_level == debug ) std::cout << LOCATION
 
 /**
  * @brief Private initialization function

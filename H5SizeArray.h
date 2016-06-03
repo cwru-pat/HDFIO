@@ -1,8 +1,7 @@
 #ifndef H5SizeArray_h
 #define H5SizeArray_h
 
-#include <iostream>
-#include <cstdarg>
+#include <hdf5.h>
 
 class H5SizeArray
 {

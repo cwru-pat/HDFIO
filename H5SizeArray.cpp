@@ -1,5 +1,6 @@
 #include <hdf5.h>
 #include <iostream>
+#include <cstdarg>
 #include "H5SizeArray.h"
 
 H5SizeArray::H5SizeArray(int rank_in, ...)
