@@ -10,8 +10,8 @@ int main()
   int gridsize=1;
   
   H5SizeArray dims (2, 10, 10);
-  // H5SizeArray start (2, 1, 1);
-  // H5SizeArray stride (2, 2, 2);
+  H5SizeArray start (2, 1, 1);
+  H5SizeArray stride (2, 2, 2);
 
   for(int i = 0; i<ARRAY_RANK; ++i)
     gridsize *= dims[i];
@@ -23,10 +23,10 @@ int main()
     f[i] = i;
   }
 
-  H5IO myIO<mytype>(ARRAY_RANK, dims);
+  H5IO myIO(ARRAY_RANK, dims, H5T_NATIVE_FLOAT);
   myIO.setVerbosity(H5IO::debug);
   myIO.setMemHyperslab(start, stride);
-  myIO.writeArrayToFile(f, "test.h5", "/dir/dataset1", true);
+  myIO.writeArrayToFile(f, "test.h5", "dataset1", true);
   myIO.writeArrayToFile(f, "test.h5", "dataset1", true);
   start.setValues(0);
   stride.setValues(4);

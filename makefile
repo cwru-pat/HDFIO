@@ -15,7 +15,7 @@ clean:
 H5SizeArray.o: H5SizeArray.cpp H5SizeArray.h
 	$(COMPILER) -c $(FLAGS) H5SizeArray.cpp
 
-H5SParams.o: H5SParams.cpp H5SParams.h  H5SizeArray.h
+H5SParams.o: H5SParams.cpp H5SParams.h H5SizeArray.h
 	$(COMPILER) -c $(FLAGS) H5SParams.cpp
 
 H5IO.o: H5IO.cpp H5IO.h H5SParams.h H5SizeArray.h
@@ -23,4 +23,4 @@ H5IO.o: H5IO.cpp H5IO.h H5SParams.h H5SizeArray.h
 
 
 test.o: test.cpp H5IO.o H5SParams.o H5SizeArray.o H5IO.h H5SParams.h H5SizeArray.h
-	$(COMPILER) -c $(FLAGS)  test.cpp
+	$(COMPILER) -c $(FLAGS) test.cpp

@@ -5,6 +5,7 @@
 #define H5IO_h
 
 #include <hdf5.h>
+#include <iostream>
 #include "H5SizeArray.h"
 #include "H5SParams.h"
 
