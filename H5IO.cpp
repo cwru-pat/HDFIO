@@ -1,6 +1,8 @@
 #include <hdf5.h>
 #include <iostream>
 #include <string>
+#include <sstream>
+#include <vector>
 
 #include "H5SizeArray.h"
 #include "H5SParams.h"
@@ -103,8 +105,47 @@ bool H5IO::_checkCompression()
   return false;
 }
 
-void H5IO::_createCloseDatasetAppend(std::string dset_name)
+ void H5IO::_split(const std::string &s, char delim, std::vector<std::string> &elems) {
+    std::stringstream ss(s);
+    std::string item;
+    while (std::getline(ss, item, delim)) {
+        elems.push_back(item);
+    }
+}
+
+
+bool H5IO::_createGroups(std::string &dset_name)
 {
+	hid_t temp_id;
+	std::string path_c="";
+	std::vector<std::string> path_b;
+	_split(dset_name,'/',path_b);
+	std::reverse(path_b.begin(),path_b.end());
+
+	while ((path_b.size()-1)) {
+	  if(!path_b.back().empty()) {
+	    path_c += "/" + path_b.back();
+	    std::cout << path_c<< std::endl;
+	    temp_id = H5Oopen(file_id,path_c.c_str(), H5P_DEFAULT);
+	    if(temp_id < 0)
+	      temp_id = H5Gcreate(file_id,path_c.c_str(),H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
+	    else if (H5I_GROUP != H5Iget_type(temp_id)) {
+	        H5IO_VERBOSE_COUT << "Cannot create dataset: non-group object exists with path '" << path_c <<"'." << std::endl << std::flush;
+	        H5Oclose(temp_id);
+	        return false;
+	    }
+	    H5Oclose(temp_id);
+	  }
+	  path_b.pop_back();
+	}
+	return true;
+}
+
+bool H5IO::_createCloseDatasetAppend(std::string dset_name)
+{	
+	if(!_createGroups(dset_name))
+		return false;
+
   H5IO_DEBUG_COUT << "Creating dataset for appending...." << std::endl << std::flush;
 
   H5IO_DEBUG_COUT << "  Formating dataspace..." << std::flush;
@@ -140,10 +181,13 @@ void H5IO::_createCloseDatasetAppend(std::string dset_name)
   H5IO_DEBUG_COUT << "Compression plist... Done!" << std::flush;
 
   H5IO_DEBUG_COUT << "Finisehd creating dataset!" << std::endl << std::flush;
+  return true;
 }
 
-void H5IO::_createOpenDataset(std::string dset_name)
-{
+bool H5IO::_createOpenDataset(std::string dset_name)
+{ 
+	if(!_createGroups(dset_name))
+		return false;
   // This shrinks the file dspace to be minimal dimensions i.e. if there is a
   // mem_dspace.dim that is 1 it will skip over unless all are one then it
   // sets the dset rank to 1 and dset_dspace.dim[0] = 1.
@@ -179,6 +223,7 @@ void H5IO::_createOpenDataset(std::string dset_name)
 
   dset_id = H5Dcreate(file_id, dset_name.c_str(), dset_dspace.type, dset_dspace.id, H5P_DEFAULT, dset_chunk_plist, H5P_DEFAULT);
   H5Pclose(dset_chunk_plist);
+  return true;
 }
 
 bool H5IO::_checkAppend()

@@ -42,9 +42,13 @@ private:
 
   bool _checkCompression();
 
-  void _createCloseDatasetAppend(std::string dset_name);
+  void _split(const std::string &s, char delim, std::vector<std::string> &elems);
 
-  void _createOpenDataset(std::string dset_name);
+  bool _createGroups(std::string &dset_name);
+
+  bool _createCloseDatasetAppend(std::string dset_name);
+
+  bool _createOpenDataset(std::string dset_name);
 
   bool _checkAppend();
 

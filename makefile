@@ -12,6 +12,11 @@ compile: H5IO.o H5SizeArray.o H5SParams.o test.o
 clean:
 	rm -f *.o
 
+full: do
+	./test
+	h5dump test.h5
+	rm test.h5 
+
 H5SizeArray.o: H5SizeArray.cpp H5SizeArray.h
 	$(COMPILER) -c $(FLAGS) H5SizeArray.cpp
 

@@ -1,10 +1,14 @@
 #include <iostream>
 #include <iomanip>
-#include "H5IO.h"
+#include <sstream>
+#include <string>
+#include <vector>
 
+#include "H5IO.h"
 
 int main()
 {
+
   #define ARRAY_RANK 2
   
   int gridsize=1;
@@ -25,13 +29,12 @@ int main()
 
   H5IO myIO(ARRAY_RANK, dims, H5T_NATIVE_FLOAT);
   myIO.setVerbosity(H5IO::debug);
-  myIO.setMemHyperslab(start, stride);
-  myIO.writeArrayToFile(f, "test.h5", "dataset1", true);
-  myIO.writeArrayToFile(f, "test.h5", "dataset1", true);
-  start.setValues(0);
-  stride.setValues(4);
-  myIO.setMemHyperslab(start, stride);
-  myIO.writeArrayToFile(f, "test.h5", "dataset2", false);
+  //myIO.setMemHyperslab(start, stride);
+  myIO.setMemHyperslab1D(0, start, 2);
+  myIO.writeArrayToFile(f, "test.h5", "/group/dataset1", true);
+  myIO.writeArrayToFile(f, "test.h5", "/group/dataset1", true);
+  myIO.setMemHyperslab1D(0, start, 2);
+  myIO.writeArrayToFile(f, "test.h5", "/group/dataset2", false);
   stride.setValues(1);
   myIO.setMemHyperslab(start, stride);
   myIO.writeArrayToFile(f, "test.h5", "dataset0", false);
