@@ -27,12 +27,11 @@ int main()
   myIO.writeArrayToFile(f, "test.h5", "dataset1", true);
   myIO.writeArrayToFile(f, "test.h5", "dataset1", true);
   start.setValues(0);
-  stride.setValues(41);
+  stride.setValues(4);
   myIO.setMemHyperslab(start, stride);
   myIO.writeArrayToFile(f, "test.h5", "dataset2", false);
   stride.setValues(1);
   myIO.setMemHyperslab(start, stride);
   myIO.writeArrayToFile(f, "test.h5", "dataset0", false);
-  std::cout << 10/4 << std::endl;
   exit(EXIT_SUCCESS);
 }
