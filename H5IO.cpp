@@ -267,7 +267,7 @@ void H5IO::_setCompressionPList()
 {
   dset_chunk_plist = H5Pcreate(H5P_DATASET_CREATE);
   status = H5Pset_layout(dset_chunk_plist, H5D_CHUNKED);
-
+  if(dset_dspace.dims.prod()*H5Tget_size(dset_dspace.type)>1<<32)
   status = H5Pset_chunk(dset_chunk_plist, dset_dspace.getRank(), dset_dspace.chunk.getPtr());
 
   if(_checkCompression())
@@ -347,23 +347,11 @@ void H5IO::_closeFileThings()
   H5Dclose(dset_id);
 }
 
-H5IO::H5IO(int mem_rank_in, H5SizeArray &mem_dims_in, hid_t mem_type_in)
-: mem_dspace(), dset_dspace()
-{
-  _initialize(mem_rank_in, mem_dims_in, mem_type_in);
-}
-
-H5IO::H5IO(int mem_rank_in, hsize_t mem_dim_in, hid_t mem_type_in)
-: mem_dspace(), dset_dspace()
-{
-
-  H5SizeArray mem_dims_in(mem_rank_in);
-  mem_dims_in.setValues(mem_dim_in);
-
-  _initialize(mem_rank_in, mem_dims_in, mem_type_in);
-
-}
-
+/**
+ * @brief Destructor for H5IO class
+ * @details yup
+ * 
+ */
 H5IO::~H5IO()
 {
   mem_dspace.closeSpace();
@@ -398,6 +386,13 @@ void H5IO::setDatasetType(hid_t dataset_type_in)
   dset_dspace.type = dataset_type_in;
 }
 
+/**
+ * @brief Selects hyperslab to be used on data in memory
+ * @details Selects a hyperslab starting at start_in with stride stride_in used for the memory data
+ * 
+ * @param start_in H5SizeArray describing the start point for the hyperslab
+ * @param stride_in H5SizeArray describing the stride in each dimension for the hyperslab
+ */
 void H5IO::setMemHyperslab(H5SizeArray &start_in, H5SizeArray &stride_in)
 {
   mem_dspace.start = start_in;
@@ -406,6 +401,16 @@ void H5IO::setMemHyperslab(H5SizeArray &start_in, H5SizeArray &stride_in)
   mem_dspace.setHyperslab();
 }
 
+
+/**
+ * @brief Selects a 1D hyperslab to be used on data in memory
+ * @details Selects a 1D hyperslab along the dimension print_dim (row major order). 
+ * The start point is defined by start_in and the stride in the print_dim dimesnions is stride_in.
+ * 
+ * @param print_dim An int for the dimension in row major order along which the hyperslab is selected.
+ * @param start_in An H5SizeArray length N describing the point in the full space where the 1D hyperslab starts.
+ * @param stride_in an hsize_t for the stride along the dimension selected.
+ */
 void H5IO::setMemHyperslab1D(int print_dim, H5SizeArray &start_in, hsize_t stride_in)
 {
   mem_dspace.start = start_in;
@@ -416,7 +421,16 @@ void H5IO::setMemHyperslab1D(int print_dim, H5SizeArray &start_in, hsize_t strid
 
   mem_dspace.setHyperslab();
 }
-
+/**
+ * @brief Selects a (N-1)D hyperslab to be used on data in memory
+ * @details Selects a (N-1)D hyperslab for an $N$ dimenal data in memory. 
+ * It drops the dimension specified by drop_dim (row major order). 
+ * The start point is defined by start_in and the stride in the print_dim dimesnions is stride_in.
+ * 
+ * @param drop_dim An int for the dimension in row major order to which the hyperslab will be perpendicular.
+ * @param start_in An H5SizeArray length N describing the point in the full space where the 1D hyperslab starts.
+ * @param stride_in an H5SizeArray length N for the stride along the dimension selected.
+ */
 void H5IO::setMemHyperslabNm1D(int drop_dim, H5SizeArray &start_in, H5SizeArray &stride_in)
 {
   mem_dspace.start = start_in;
@@ -428,6 +442,17 @@ void H5IO::setMemHyperslabNm1D(int drop_dim, H5SizeArray &start_in, H5SizeArray 
   mem_dspace.setHyperslab();
 }
 
+/**
+ * @brief Writes array to file.
+ * @details Writes array (or its hyperslab) to file with specified filename, datasetname. 
+ * Can choose to append to a dataset aswell.
+ * 
+ * @param array A pointer to the array to be written.
+ * @param file_name A std::string for the name of the file to write to.
+ * @param dset_name A std::string for the name of the "group[s]/dataset" to write in the file.
+ * @param append_flag A bool to determine if it should append to the dataset (true).
+ * @return False if it fails true if it succeeds.
+ */
 bool H5IO::writeArrayToFile(void *array, std::string file_name, std::string dset_name, bool append_flag)
 {
   _openOrCreateFile(file_name,false);

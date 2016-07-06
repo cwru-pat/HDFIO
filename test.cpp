@@ -27,7 +27,7 @@ int main()
     f[i] = i;
   }
 
-  H5IO myIO(ARRAY_RANK, dims, H5T_NATIVE_FLOAT);
+  H5IO myIO<float>(ARRAY_RANK, dims);
   myIO.setVerbosity(H5IO::debug);
   //myIO.setMemHyperslab(start, stride);
   myIO.setMemHyperslab1D(0, start, 2);

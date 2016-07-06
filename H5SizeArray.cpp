@@ -67,3 +67,11 @@ void H5SizeArray::print()
 
   std::cout << std::endl << std::flush;
 }
+
+hsize_t H5SizeArray::mag()
+{
+  hsize_t prod = 1.;
+  for (int i = 0; i < rank; ++i)
+    prod *= array[i]
+  return prod
+}

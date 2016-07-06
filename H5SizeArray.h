@@ -29,6 +29,8 @@ public:
 
   void print();
 
+  hsize_t H5SizeArray::mag();
+
 };
 
 #endif
