@@ -2,6 +2,9 @@
 doxygen/latex
 doxygen/html
 
+# Build
+build/*
+
 # Test exe file
 test
 

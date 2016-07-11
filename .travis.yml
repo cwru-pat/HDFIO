@@ -20,4 +20,4 @@ install:
  - gcc --version
  - g++ --version
 
-script: ./test.sh
+script: ./tests/run_tests.sh
