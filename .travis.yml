@@ -19,4 +19,4 @@ install:
  - gcc --version
  - g++ --version
 
-script: test.sh
+script: ./test.sh
