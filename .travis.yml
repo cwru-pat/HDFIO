@@ -18,3 +18,5 @@ install:
  - pwd
  - gcc --version
  - g++ --version
+
+script: test.sh
