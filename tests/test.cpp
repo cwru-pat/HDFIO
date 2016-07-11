@@ -1,14 +1,13 @@
 #include <iostream>
 #include <iomanip>
-#include <sstream>
 #include <string>
-#include <vector>
 
 #include "H5IO.h"
 
+using namespace std;
+
 int main()
 {
-
   #define ARRAY_RANK 2
   
   int gridsize=1;
@@ -39,5 +38,5 @@ int main()
   myIO.setMemHyperslab(start, stride);
   myIO.writeArrayToFile(f, "test.h5", "dataset0", false);
 
-  exit(EXIT_SUCCESS);
+  return 0;
 }
