@@ -1,3 +1,7 @@
+# doxygen generated latex, html
+doxygen/latex
+doxygen/html
+
 # Test exe file
 test
 
