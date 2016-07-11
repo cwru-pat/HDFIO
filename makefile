@@ -12,7 +12,7 @@ compile: H5IO.o H5SizeArray.o H5SParams.o test.o
 clean:
 	rm -f *.o
 
-full: do
+test: do
 	./test
 	h5dump test.h5
 	rm test.h5 
@@ -25,7 +25,6 @@ H5SParams.o: H5SParams.cpp H5SParams.h H5SizeArray.h
 
 H5IO.o: H5IO.cpp H5IO.h H5SParams.h H5SizeArray.h
 	$(COMPILER) -c $(FLAGS) H5IO.cpp
-
 
 test.o: test.cpp H5IO.o H5SParams.o H5SizeArray.o H5IO.h H5SParams.h H5SizeArray.h
 	$(COMPILER) -c $(FLAGS) test.cpp
