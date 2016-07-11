@@ -1,3 +1,10 @@
+# doxygen generated latex, html
+doxygen/latex
+doxygen/html
+
+# Build
+build/*
+
 # Test exe file
 test
 

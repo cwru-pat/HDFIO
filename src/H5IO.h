@@ -7,6 +7,7 @@
 #include <hdf5.h>
 #include <iostream>
 #include <typeinfo>
+#include <vector>
 #include "H5SizeArray.h"
 #include "H5SParams.h"
 
