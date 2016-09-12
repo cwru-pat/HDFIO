@@ -185,7 +185,7 @@ bool H5IO::_createCloseDatasetAppend(std::string dset_name)
   return true;
 }
 
-bool H5IO::_createOpenDataset(std::string dset_name)
+bool H5IO::_createOpenDataset(std::string dset_name, bool read_flag)
 { 
   if(!_createGroups(dset_name))
     return false;
@@ -221,8 +221,8 @@ bool H5IO::_createOpenDataset(std::string dset_name)
 
   dset_dspace.chunk = dset_dspace.dims;
   _setCompressionPList();
-
-  dset_id = H5Dcreate(file_id, dset_name.c_str(), dset_dspace.type, dset_dspace.id, H5P_DEFAULT, dset_chunk_plist, H5P_DEFAULT);
+  if(!read_flag)
+    dset_id = H5Dcreate(file_id, dset_name.c_str(), dset_dspace.type, dset_dspace.id, H5P_DEFAULT, dset_chunk_plist, H5P_DEFAULT);
   H5Pclose(dset_chunk_plist);
   return true;
 }
@@ -440,7 +440,7 @@ bool H5IO::readArrayFromFile(void *array, std::string file_name, std::string dse
     H5IO_DEBUG_COUT << "Can't read dataset that does not exist. Aborting reading." << std::endl;
     return false;
   }
-  
+  _createOpenDataset(dset_name, true);
   status = H5Dread(dset_id, mem_dspace.type, mem_dspace.id,
 		   dset_dspace.id, H5P_DEFAULT, array);
   H5IO_DEBUG_COUT << "Done!" << std::endl << std::flush;
@@ -470,7 +470,7 @@ bool H5IO::writeArrayToFile(void *array, std::string file_name, std::string dset
       return false;
     }
     else
-      _createOpenDataset(dset_name);
+      _createOpenDataset(dset_name, false);
   }
   H5IO_DEBUG_COUT << "Writing data..." << std::flush;
   status = H5Dwrite(dset_id, mem_dspace.type, mem_dspace.id, dset_dspace.id, H5P_DEFAULT, array);

@@ -49,7 +49,7 @@ private:
 
   bool _createCloseDatasetAppend(std::string dset_name);
 
-  bool _createOpenDataset(std::string dset_name);
+  bool _createOpenDataset(std::string dset_name, bool read_flag);
 
   bool _checkAppend();
 
