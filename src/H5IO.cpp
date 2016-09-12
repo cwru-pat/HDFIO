@@ -46,7 +46,7 @@ void H5IO::_initialize(int mem_rank_in, H5SizeArray &mem_dims_in, hid_t mem_type
  */
 void H5IO::_pauseH5ErrorHandeling()
 {
-	H5Eget_auto(H5E_DEFAULT, &default_error_func, &default_error_out);
+  H5Eget_auto(H5E_DEFAULT, &default_error_func, &default_error_out);
   H5Eset_auto(H5E_DEFAULT,NULL,NULL);
 }
 
@@ -187,8 +187,8 @@ bool H5IO::_createCloseDatasetAppend(std::string dset_name)
 
 bool H5IO::_createOpenDataset(std::string dset_name)
 { 
-	if(!_createGroups(dset_name))
-		return false;
+  if(!_createGroups(dset_name))
+    return false;
   // This shrinks the file dspace to be minimal dimensions i.e. if there is a
   // mem_dspace.dim that is 1 it will skip over unless all are one then it
   // sets the dset rank to 1 and dset_dspace.dim[0] = 1.
@@ -245,7 +245,7 @@ bool H5IO::_checkAppend()
 
 }
 
-bool H5IO::_checkDatasetExists(std::string dset_name)
+bool H5IO::_checkDatasetExists(std::string dset_name, bool read_flag)
 {
   hid_t temp;
    H5IO_DEBUG_COUT << "Seeing if dataset exists..." << std::flush;
@@ -257,8 +257,10 @@ bool H5IO::_checkDatasetExists(std::string dset_name)
     H5IO_DEBUG_COUT << "Dataset does not exist." << std::endl;
     return false;
   }
-
   H5Dclose(temp);
+
+  if(read_flag)
+    dset_id = H5Dopen(file_id, dset_name.c_str(), H5P_DEFAULT);
   H5IO_DEBUG_COUT << "Dataset exists!" << std::endl << std::flush;
   return true;
 }
@@ -429,6 +431,23 @@ void H5IO::setMemHyperslabNm1D(int drop_dim, H5SizeArray &start_in, H5SizeArray 
   mem_dspace.setHyperslab();
 }
 
+bool H5IO::readArrayFromFile(void *array, std::string file_name, std::string dset_name)
+{
+  _openOrCreateFile(file_name, true);
+
+  if(!_checkDatasetExists(dset_name, true))
+  {
+    H5IO_DEBUG_COUT << "Can't read dataset that does not exist. Aborting reading." << std::endl;
+    return false;
+  }
+  
+  status = H5Dread(dset_id, mem_dspace.type, mem_dspace.id,
+		   dset_dspace.id, H5P_DEFAULT, array);
+  H5IO_DEBUG_COUT << "Done!" << std::endl << std::flush;
+  _closeFileThings();
+  return true;
+}
+
 bool H5IO::writeArrayToFile(void *array, std::string file_name, std::string dset_name, bool append_flag)
 {
   _openOrCreateFile(file_name,false);
@@ -436,7 +455,7 @@ bool H5IO::writeArrayToFile(void *array, std::string file_name, std::string dset
   if(append_flag)
   {
     //check if dataset does NOT exists
-    if( ! _checkDatasetExists(dset_name) )
+    if( ! _checkDatasetExists(dset_name, false) )
         _createCloseDatasetAppend(dset_name);
 
     H5IO_DEBUG_COUT << "Opening dataset..." << std::flush;
@@ -446,7 +465,7 @@ bool H5IO::writeArrayToFile(void *array, std::string file_name, std::string dset
     if (! _setAppend())
       return false;
   } else { //create new file
-    if( _checkDatasetExists(dset_name) ) {
+    if( _checkDatasetExists(dset_name, false) ) {
       H5IO_DEBUG_COUT << "Can't write dataset to one that exists. Aborting write." << std::endl;
       return false;
     }
@@ -458,7 +477,7 @@ bool H5IO::writeArrayToFile(void *array, std::string file_name, std::string dset
   H5IO_DEBUG_COUT << "Done!" << std::endl << std::flush;
 
 
-  status = dset_dspace.closeSpace();
+  //status = dset_dspace.closeSpace();
   _closeFileThings();
 
   return true;

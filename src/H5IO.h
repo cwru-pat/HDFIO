@@ -53,7 +53,7 @@ private:
 
   bool _checkAppend();
 
-  bool _checkDatasetExists(std::string dset_name);
+  bool _checkDatasetExists(std::string dset_name, bool read_flag);
 
   void _setCompressionPList();
 
@@ -82,6 +82,8 @@ public:
   void setMemHyperslabNm1D(int drop_dim, H5SizeArray &start_in, H5SizeArray &stride_in);
   
   bool writeArrayToFile(void *array, std::string file_name, std::string dset_name, bool append_flag);
+
+  bool readArrayFromFile(void *arry, std::string file_name, std::string dset_name);
 };
 
 #endif
