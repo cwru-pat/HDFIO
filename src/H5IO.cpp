@@ -477,7 +477,7 @@ bool H5IO::writeArrayToFile(void *array, std::string file_name, std::string dset
   H5IO_DEBUG_COUT << "Done!" << std::endl << std::flush;
 
 
-  //status = dset_dspace.closeSpace();
+  status = dset_dspace.closeSpace();
   _closeFileThings();
 
   return true;
